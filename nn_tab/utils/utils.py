@@ -313,9 +313,9 @@ def train_crl(loader, model, criterion_cls, criterion_ranking, optimizer, epoch,
         loss = cls_loss + rank_weight * ranking_loss + rank_weight_f * ranking_loss_f
 
         # calculate scores 
-        aum_dict = calculate_aum(output.detach().cpu(), target.detach().cpu(), list(identifier), aum_dict, epoch)
-        el2n_scores = EL2N_score(conf.detach().cpu(), target.detach().cpu(), list(identifier), el2n_scores, epoch)
-        forgetting_scores = update_forgetting(output.detach().cpu(), target.detach().cpu(), list(identifier), epoch, forgetting_scores)
+        aum_dict = calculate_aum(output.detach().cpu(), target.detach().cpu(), identifier.tolist(), aum_dict, epoch)
+        el2n_scores = EL2N_score(conf.detach().cpu(), target.detach().cpu(), identifier.tolist(), el2n_scores, epoch)
+        forgetting_scores = update_forgetting(output.detach().cpu(), target.detach().cpu(), identifier.tolist(), epoch, forgetting_scores)
 
          # Check for NaN or inf values
         if check_for_invalid_values(inputx, output, loss, "training"):
