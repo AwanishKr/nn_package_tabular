@@ -63,7 +63,7 @@ def main(config=None):
         logger.info(f"Using standard training with single multiclass loss function")
         train_model(model, epochs, optimizer, scheduler, train_loader, val_loader, criterion, device, exp_name, model_name)
     
-    elif training_method == "multilabel":
+    elif training_method == "standard_multilabel":
         logger.info(f"Using standard training with multilabel loss function")
         train_model(model, epochs, optimizer, scheduler, train_loader, val_loader, criterion, device, exp_name, model_name)
     
