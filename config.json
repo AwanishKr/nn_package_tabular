@@ -1,0 +1,20 @@
+{
+    "train_path" : "some path",
+    "test_path" : "some path",
+    "feature_path" : "some path",
+    "batch_size" : 512,
+    "output_dim":2,
+    "target": "fraud_sw",
+    "hidden_layers" : [512, 128, 64, 4],
+    "epochs" : 100,
+    "model_name": "fraudmodel_5layer",
+    "optimizer": {"name": "Adam", "lr": 1e-4, "weight_decay": 1e-5},
+    "rank_weight_c": 0.5,
+    "rank_weight_f": 0.5,
+    "training_method": "standard_multiclass, standard_multilabel, confidence_aware for CRL and FAL",
+    "loss_function": "CrossEntropyLoss, BCEWithLogitsLoss, MSELoss, FocalLoss",
+    "focal_loss_config": {"gamma": 2.0, "alpha": [null]},
+    "use_class_weights": true,
+    "health_metrics" : ["aum", "etc", "etc", "etc"],
+    "exp_name" : "testing_nn_repo"
+}
