@@ -11,12 +11,12 @@ import matplotlib.pyplot as plt
 
 import sklearn
 import numpy as np
+from sklearn.metrics import roc_auc_score
 from sklearn.metrics import average_precision_score
 
 from .calculate_scores import EL2N_score, calculate_aum, update_forgetting, add_logits_to_aum_dict
 from ..plots import plot_loss_curve
 from .crl_utils import ForgettingTracker, History
-from sklearn.metrics import roc_auc_score
 from ..logger import get_logger
 
 
@@ -312,7 +312,7 @@ def train_crl(loader, model, criterion_cls, criterion_ranking, optimizer, epoch,
         # final loss
         loss = cls_loss + rank_weight * ranking_loss + rank_weight_f * ranking_loss_f
 
-        # calculate scores 
+        # calculate scores
         aum_dict = calculate_aum(output.detach().cpu(), target.detach().cpu(), identifier.tolist(), aum_dict, epoch)
         el2n_scores = EL2N_score(conf.detach().cpu(), target.detach().cpu(), identifier.tolist(), el2n_scores, epoch)
         forgetting_scores = update_forgetting(output.detach().cpu(), target.detach().cpu(), identifier.tolist(), epoch, forgetting_scores)
@@ -404,9 +404,19 @@ def train_model_crl(model, epochs, optimizer, scheduler, train_loader, val_loade
     criterion_cls, criterion_ranking = criterion
             
     correctness_history = History(len(train_loader.dataset))
-    forgetting_history = ForgettingTracker(num_examples=len(train_loader.dataset)+len(val_loader.dataset))
+    forgetting_history = ForgettingTracker(num_examples=len(train_loader.dataset))
     
-    for epoch_num in range(1, epochs + 1):        
+    # Create experiment-specific directory structure once before training loop
+    history_metrics_dir = os.path.join(os.getcwd(), "history_metrics", exp_name)
+    aum_dir = os.path.join(history_metrics_dir, "aum_scores")
+    el2n_dir = os.path.join(history_metrics_dir, "el2n_scores")
+    forgetting_dir = os.path.join(history_metrics_dir, "forgetting_scores")
+    
+    os.makedirs(aum_dir, exist_ok=True)
+    os.makedirs(el2n_dir, exist_ok=True)
+    os.makedirs(forgetting_dir, exist_ok=True)
+    
+    for epoch_num in range(1, epochs + 1):
         input_list = [train_loader, model, criterion_cls, criterion_ranking, optimizer, epoch_num, 
                       correctness_history, forgetting_history, rank_weight, rank_weight_f, aum_dict, el2n_scores, forgetting_scores, device
                       ]
@@ -415,15 +425,18 @@ def train_model_crl(model, epochs, optimizer, scheduler, train_loader, val_loade
         val_loss, test_accuracy, test_aucpr = val_fn(model, val_loader, device, criterion_cls, training_method)
 
         if epoch_num % 1 == 0:
-            AUM_PICKLE_PATH = "aum_dict_"+str(epoch_num)+".pkl"
+            # Save AUM scores
+            AUM_PICKLE_PATH = os.path.join(aum_dir, f"aum_dict_{epoch_num}.pkl")
             with open(AUM_PICKLE_PATH, "wb") as f:
                 pkl.dump(add_logits_to_aum_dict(model, train_loader, device, aum_dict), f)
                 
-            el2n_PICKLE_PATH = "el2n_score_dict_"+str(epoch_num)+".pkl"
+            # Save EL2N scores
+            el2n_PICKLE_PATH = os.path.join(el2n_dir, f"el2n_score_dict_{epoch_num}.pkl")
             with open(el2n_PICKLE_PATH, "wb") as f:
                 pkl.dump(el2n_scores, f)
                 
-            forgetting_scores_PICKLE_PATH = "forgetting_scores_dict_"+str(epoch_num)+".pkl"
+            # Save forgetting scores
+            forgetting_scores_PICKLE_PATH = os.path.join(forgetting_dir, f"forgetting_scores_dict_{epoch_num}.pkl")
             with open(forgetting_scores_PICKLE_PATH, "wb") as f:
                 pkl.dump(forgetting_scores, f)
     
