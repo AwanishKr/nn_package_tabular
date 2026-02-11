@@ -10,7 +10,7 @@ import pandas as pd
 from ..logger import get_logger
 
 
-def auc_plot(y_preds, y_test_data, responsescore_prob):
+def auc_plot(y_preds, y_test_data, responsescore_prob, exp_name):
     logger = get_logger()
     logger.info("Generating AUC plots and computing classification metrics")
     
@@ -54,14 +54,22 @@ def auc_plot(y_preds, y_test_data, responsescore_prob):
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.legend()
-    plt.savefig(f"../NN/code/plots/auc_plots.jpg")
     
+    # Create directory inside current working dir
+    plot_dir = os.path.join(os.getcwd(), "plots", exp_name)
+    os.makedirs(plot_dir, exist_ok=True)
+    
+    # Save plot
+    plot_path = os.path.join(plot_dir, "auc_plots.jpg")
+    plt.savefig(plot_path, bbox_inches='tight')
+    plt.close()
+    logger.info(f"AUC plot saved at: {plot_path}")
 
     logger.info(f"AUC ROC neural net: {auc_new}")
     
     
 ## Function to get the important business KPI's
-def plot_info(y_test_data,responsescore_prob,y_preds, name,test_data):
+def plot_info(y_test_data, responsescore_prob, y_preds, name, test_data, exp_name):
     threshold = [0.01*i for i in range(1,101)]
     df = {'fraud_sw':y_test_data, 'responsescore_divided': responsescore_prob, 'pred_prob':y_preds, 'amt_usd':test_data['amt_usd']}
     data = pd.DataFrame(df)
@@ -99,7 +107,13 @@ def plot_info(y_test_data,responsescore_prob,y_preds, name,test_data):
     df_resp3_data = pd.DataFrame(resp3_data)
     df_resp3_data.columns = ["threshold", "tp", "fp", "tn", "fn", "ttnr", "tfpr", "tdr", "fraud_bps","amt_bps"]
 
-    df_resp3_data.to_csv('../NN/code/KPI/kpi_rs3.csv')
+    # Create directory inside current working dir
+    kpi_dir = os.path.join(os.getcwd(), "KPI", exp_name)
+    os.makedirs(kpi_dir, exist_ok=True)
+    
+    # Save CSV
+    kpi_rs3_path = os.path.join(kpi_dir, "kpi_rs3.csv")
+    df_resp3_data.to_csv(kpi_rs3_path)
 
     ## KPI's for our model
     pred_data =[]
@@ -130,13 +144,14 @@ def plot_info(y_test_data,responsescore_prob,y_preds, name,test_data):
     df_pred_data = pd.DataFrame(pred_data)
     df_pred_data.columns = ["threshold", "tp", "fp", "tn", "fn", "ttnr", "tfpr", "tdr", "fraud_bps","amt_bps"]
 
-    df_pred_data.to_csv("../NN/code/KPI/kpi_model.csv")
+    # Save CSV
+    kpi_model_path = os.path.join(kpi_dir, "kpi_model.csv")
+    df_pred_data.to_csv(kpi_model_path)
 
     return df_resp3_data, df_pred_data
 
 
-
-def ttnr_tdr(df_resp3,df_pred,name):
+def ttnr_tdr(df_resp3, df_pred, name, exp_name):
     plt.figure(figsize=(10,6))
     plt.plot(df_pred['ttnr'], df_pred['tdr'],label='neural_net', color='blue')
     plt.plot(df_resp3['ttnr'], df_resp3['tdr'],label='Response_Score', color='red')
@@ -147,11 +162,19 @@ def ttnr_tdr(df_resp3,df_pred,name):
 
     # Add a legend
     plt.legend()
-    plt.savefig(f"../plots/{name}_ttnr_vs_tdr.jpg")
+    
+    # Create directory inside current working dir
+    plot_dir = os.path.join(os.getcwd(), "plots", exp_name)
+    os.makedirs(plot_dir, exist_ok=True)
+    
+    # Save plot
+    plot_path = os.path.join(plot_dir, f"{name}_ttnr_vs_tdr.jpg")
+    plt.savefig(plot_path, bbox_inches='tight')
+    plt.close()
 
     
     
-def ttnr_tfpr(df_resp3,df_pred,name):
+def ttnr_tfpr(df_resp3, df_pred, name, exp_name):
     plt.figure(figsize=(10,6))
     plt.plot(df_pred['ttnr'], df_pred['tfpr'], label='neural_net', color='blue')
     plt.plot(df_resp3['ttnr'], df_resp3['tfpr'], label='Response_Score', color='red')
@@ -162,11 +185,19 @@ def ttnr_tfpr(df_resp3,df_pred,name):
 
     # Add a legend
     plt.legend()
-    plt.savefig(f"../plots/{name}_TTNR_vs_TFPR.jpg")
+    
+    # Create directory inside current working dir
+    plot_dir = os.path.join(os.getcwd(), "plots", exp_name)
+    os.makedirs(plot_dir, exist_ok=True)
+    
+    # Save plot
+    plot_path = os.path.join(plot_dir, f"{name}_TTNR_vs_TFPR.jpg")
+    plt.savefig(plot_path, bbox_inches='tight')
+    plt.close()
 
 
 
-def ttnr_fraud_bps(df_resp3,df_pred,name):
+def ttnr_fraud_bps(df_resp3, df_pred, name, exp_name):
     plt.figure(figsize=(10,6))
     plt.plot(df_pred['ttnr'], df_pred['fraud_bps'], label='neural_net', color='blue')
     plt.plot(df_resp3['ttnr'], df_resp3['fraud_bps'], label='Response_Score', color='red')
@@ -178,20 +209,28 @@ def ttnr_fraud_bps(df_resp3,df_pred,name):
 
     # Add a legend
     plt.legend()
-    plt.savefig(f"../plots/{name}_TTNR_vs_Basis_Points.jpg")
+    
+    # Create directory inside current working dir
+    plot_dir = os.path.join(os.getcwd(), "plots", exp_name)
+    os.makedirs(plot_dir, exist_ok=True)
+    
+    # Save plot
+    plot_path = os.path.join(plot_dir, f"{name}_TTNR_vs_Basis_Points.jpg")
+    plt.savefig(plot_path, bbox_inches='tight')
+    plt.close()
 
 
 
 
 ## Get the plots for business KPI's
-def tnxs_plots(y_preds,y_test_data,responsescore_prob, name ,test_data):
-    df_resp3 , df_pred = plot_info(y_test_data,responsescore_prob,y_preds,name,test_data )
+def tnxs_plots(y_preds, y_test_data, responsescore_prob, name, test_data, exp_name):
+    df_resp3 , df_pred = plot_info(y_test_data, responsescore_prob, y_preds, name, test_data, exp_name)
     df_resp3.sort_values(by='threshold', inplace= True)
     df_pred.sort_values(by='threshold', inplace= True)
 
-    ttnr_tdr(df_resp3,df_pred,name)
-    ttnr_tfpr(df_resp3,df_pred,name)
-    ttnr_fraud_bps(df_resp3,df_pred,name)
+    ttnr_tdr(df_resp3, df_pred, name, exp_name)
+    ttnr_tfpr(df_resp3, df_pred, name, exp_name)
+    ttnr_fraud_bps(df_resp3, df_pred, name, exp_name)
 
 
 
