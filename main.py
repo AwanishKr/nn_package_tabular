@@ -57,15 +57,15 @@ def main(config=None):
 
     if training_method == "confidence_aware":
         logger.info(f"Using confidence-aware training with classification and ranking losses")
-        train_model_crl(model, epochs, optimizer, scheduler, train_loader, val_loader, rank_weight, rank_weight_f, criterion, device, exp_name, model_name)
+        train_model_crl(model, epochs, optimizer, scheduler, train_loader, val_loader, rank_weight, rank_weight_f, criterion, device, exp_name, model_name, training_method)
     
     elif training_method == "standard_multiclass":
         logger.info(f"Using standard training with single multiclass loss function")
-        train_model(model, epochs, optimizer, scheduler, train_loader, val_loader, criterion, device, exp_name, model_name)
+        train_model(model, epochs, optimizer, scheduler, train_loader, val_loader, criterion, device, exp_name, model_name, training_method)
     
     elif training_method == "standard_multilabel":
         logger.info(f"Using standard training with multilabel loss function")
-        train_model(model, epochs, optimizer, scheduler, train_loader, val_loader, criterion, device, exp_name, model_name)
+        train_model(model, epochs, optimizer, scheduler, train_loader, val_loader, criterion, device, exp_name, model_name, training_method)
     
     else:
         supported_methods = ["confidence_aware", "standard_multiclass", "standard_multilabel"]
