@@ -3,12 +3,11 @@ import os
 import math
 import time
 
-from nntab_v1.logger import setup_logger
-from nntab_v1.datasets import read_train_data
-from nntab_v1.config_loader import load_config
-from nntab_v1.utils import train_model, train_model_crl
-
-from nntab_v1.models import get_model
+from nntab.logger import setup_logger
+from nntab.datasets import read_train_data
+from nntab.config_loader import load_config
+from nntab.utils import train_model, train_model_crl
+from nntab.models import get_model
 
 import torch
 torch.manual_seed(0)
