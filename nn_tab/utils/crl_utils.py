@@ -14,7 +14,6 @@ def negative_entropy(data, normalize=False, max_value=None):
     if normalize:
         normalized_entropy = entropy / max_value
         return -normalized_entropy
-
     return -entropy
 
 
@@ -57,19 +56,23 @@ class ForgettingTracker:
         data_idx1 = data_idx1.cpu().numpy()
         cum_forgetting1 = self.forgetting_counts[data_idx1]
         cum_forgetting2 = self.forgetting_counts[data_idx2]
+        
         # normalize correctness values
         cum_forgetting1 = self.forgetting_normalize(cum_forgetting1)
         cum_forgetting2 = self.forgetting_normalize(cum_forgetting2)
+        
         # make target pair
         n_pair = len(data_idx1)
         target1 = cum_forgetting1[:n_pair]
         target2 = cum_forgetting2[:n_pair]
+        
         # calc target
         greater = np.array(target1 > target2, dtype='float') * (-1)
         less = np.array(target1 < target2, dtype='float') 
 
         target = greater + less
         target = torch.from_numpy(target).float().to(device)
+        
         # calc margin
         margin = abs(target1 - target2)
         margin = torch.from_numpy(margin).float().to(device)
