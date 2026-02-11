@@ -20,7 +20,7 @@ from sklearn.metrics import roc_auc_score
 from ..logger import get_logger
 
 
-def accuracy(output, target):
+def accuracy_metric(output, target):
     """Calculate accuracy for classification task.
     
     Args:
@@ -112,7 +112,7 @@ def check_for_invalid_values(X, y_hat, loss, context=""):
     return False
 
 
-def val_fn(model, data_loader, device, criterion):
+def val_fn(model, data_loader, device, criterion, training_method):
     """Validation function that evaluates model performance on validation set.
     
     Args:
@@ -132,29 +132,54 @@ def val_fn(model, data_loader, device, criterion):
     y_pred_probs = []
     
     with torch.no_grad():
-        for X, y in tqdm(data_loader, desc="Validation", leave=False, disable=True):
-            X = X.to(device)
-            y = y.to(device)
-            
-            y_hat = model(X)
-            loss = criterion(y_hat, y)
-            
-            # Check for NaN or Inf values in inputs, outputs, and loss
-            if check_for_invalid_values(X, y_hat, loss, "validation"):
-                break
-            
-            # Accuracy computation: get predicted class from y_hat
-            _, predicted = torch.max(y_hat, 1)
-            batch_accuracy = (predicted == y).sum().item() / y.size(0)
-            
-            # Update meters with proper weighting
-            losses.update(loss.item(), y.size(0))
-            accuracies.update(batch_accuracy, y.size(0))
-            
-            # Collect ground truth and predicted probabilities (for class 1)
-            y_true.extend(y.cpu().numpy())
-            # Use softmax to compute probabilities, then take class 1 probability.
-            y_pred_probs.extend(torch.softmax(y_hat, dim=1)[:, 1].cpu().numpy())
+        if training_method == 'confidence_aware':
+            for X, y,_,_ in tqdm(data_loader, desc="Validation", leave=False, disable=True):
+                X = X.to(device)
+                y = y.to(device)
+                
+                y_hat = model(X)
+                loss = criterion(y_hat, y)
+                
+                # Check for NaN or Inf values in inputs, outputs, and loss
+                if check_for_invalid_values(X, y_hat, loss, "validation"):
+                    break
+                
+                # Accuracy computation: get predicted class from y_hat
+                _, predicted = torch.max(y_hat, 1)
+                batch_accuracy = (predicted == y).sum().item() / y.size(0)
+                
+                # Update meters with proper weighting
+                losses.update(loss.item(), y.size(0))
+                accuracies.update(batch_accuracy, y.size(0))
+                
+                # Collect ground truth and predicted probabilities (for class 1)
+                y_true.extend(y.cpu().numpy())
+                # Use softmax to compute probabilities, then take class 1 probability.
+                y_pred_probs.extend(torch.softmax(y_hat, dim=1)[:, 1].cpu().numpy())
+        else:
+            for X, y in tqdm(data_loader, desc="Validation", leave=False, disable=True):
+                X = X.to(device)
+                y = y.to(device)
+                
+                y_hat = model(X)
+                loss = criterion(y_hat, y)
+                
+                # Check for NaN or Inf values in inputs, outputs, and loss
+                if check_for_invalid_values(X, y_hat, loss, "validation"):
+                    break
+                
+                # Accuracy computation: get predicted class from y_hat
+                _, predicted = torch.max(y_hat, 1)
+                batch_accuracy = (predicted == y).sum().item() / y.size(0)
+                
+                # Update meters with proper weighting
+                losses.update(loss.item(), y.size(0))
+                accuracies.update(batch_accuracy, y.size(0))
+                
+                # Collect ground truth and predicted probabilities (for class 1)
+                y_true.extend(y.cpu().numpy())
+                # Use softmax to compute probabilities, then take class 1 probability.
+                y_pred_probs.extend(torch.softmax(y_hat, dim=1)[:, 1].cpu().numpy())
     
     aucpr = average_precision_score(y_true, y_pred_probs)
     return losses.avg, accuracies.avg, aucpr
@@ -287,7 +312,7 @@ def train_crl(loader, model, criterion_cls, criterion_ranking, optimizer, epoch,
         # final loss
         loss = cls_loss + rank_weight * ranking_loss + rank_weight_f * ranking_loss_f
 
-        # calculate scores
+        # calculate scores 
         aum_dict = calculate_aum(output.detach().cpu(), target.detach().cpu(), list(identifier), aum_dict, epoch)
         el2n_scores = EL2N_score(conf.detach().cpu(), target.detach().cpu(), list(identifier), el2n_scores, epoch)
         forgetting_scores = update_forgetting(output.detach().cpu(), target.detach().cpu(), list(identifier), epoch, forgetting_scores)
@@ -310,7 +335,7 @@ def train_crl(loader, model, criterion_cls, criterion_ranking, optimizer, epoch,
         all_train_targets.append(target.detach())
 
         # Track performance metrics
-        prec, correct = accuracy(output, target)
+        prec, correct = accuracy_metric(output, target)
         cls_losses.update(cls_loss.item(), inputx.size(0))
         ranking_losses.update(ranking_loss.item(), inputx.size(0))
         # total_train_loss.update(loss.item(), inputx.size(0))
@@ -342,7 +367,7 @@ def train_crl(loader, model, criterion_cls, criterion_ranking, optimizer, epoch,
     return avg_loss, accuracy, aum_dict, el2n_scores, forgetting_scores
 
 
-def train_model_crl(model, epochs, optimizer, scheduler, train_loader, val_loader, rank_weight, rank_weight_f, criterion, device, exp_name, model_name):
+def train_model_crl(model, epochs, optimizer, scheduler, train_loader, val_loader, rank_weight, rank_weight_f, criterion, device, exp_name, model_name, training_method):
     """Complete training pipeline for Curriculum Learning with confidence-aware loss.
     
     Args:
@@ -381,16 +406,15 @@ def train_model_crl(model, epochs, optimizer, scheduler, train_loader, val_loade
     correctness_history = History(len(train_loader.dataset))
     forgetting_history = ForgettingTracker(num_examples=len(train_loader.dataset)+len(val_loader.dataset))
     
-    for epoch_num in range(epochs):        
+    for epoch_num in range(1, epochs + 1):        
         input_list = [train_loader, model, criterion_cls, criterion_ranking, optimizer, epoch_num, 
-                      correctness_history, forgetting_history, rank_weight, rank_weight_f, 
-                      aum_dict, el2n_scores, forgetting_scores, device
+                      correctness_history, forgetting_history, rank_weight, rank_weight_f, aum_dict, el2n_scores, forgetting_scores, device
                       ]
         
-        train_loss, train_accuracy, _, aum_dict, el2n_scores, forgetting_scores = train_crl(*input_list)
-        val_loss, test_accuracy, test_aucpr = val_fn(model, val_loader, device, criterion)
+        train_loss, train_accuracy, aum_dict, el2n_scores, forgetting_scores = train_crl(*input_list)
+        val_loss, test_accuracy, test_aucpr = val_fn(model, val_loader, device, criterion_cls, training_method)
 
-        if epoch_num % 10 == 0:
+        if epoch_num % 1 == 0:
             AUM_PICKLE_PATH = "aum_dict_"+str(epoch_num)+".pkl"
             with open(AUM_PICKLE_PATH, "wb") as f:
                 pkl.dump(add_logits_to_aum_dict(model, train_loader, device, aum_dict), f)
@@ -443,7 +467,7 @@ def train_model_crl(model, epochs, optimizer, scheduler, train_loader, val_loade
 
 
 
-def train_model(model, epochs, optimizer, scheduler, train_loader, val_loader, criterion, device, exp_name, model_name):
+def train_model(model, epochs, optimizer, scheduler, train_loader, val_loader, criterion, device, exp_name, model_name, training_method):
     """Complete training pipeline with validation and early stopping.
     
     Args:
@@ -474,7 +498,7 @@ def train_model(model, epochs, optimizer, scheduler, train_loader, val_loader, c
             
     for epoch in range(epochs):
         train_loss, train_accuracy = train_fn(model, train_loader, optimizer, device, criterion)
-        val_loss, test_accuracy, test_aucpr = val_fn(model, val_loader, device, criterion)
+        val_loss, test_accuracy, test_aucpr = val_fn(model, val_loader, device, criterion, training_method)
 
         scheduler.step(val_loss)
         lrs.append(optimizer.param_groups[0]["lr"])
