@@ -13,7 +13,7 @@
     "rank_weight_f": 0.5,
     "training_method": "standard_multiclass, standard_multilabel, confidence_aware for CRL and FAL",
     "loss_function": "CrossEntropyLoss, BCEWithLogitsLoss, MSELoss, FocalLoss",
-    "focal_loss_config": {"gamma": 2.0, "alpha": [null]},
+    "focal_loss_config": {"gamma": 2.0, "alpha": null},
     "use_class_weights": true,
     "health_metrics" : ["aum", "etc", "etc", "etc"],
     "exp_name" : "testing_nn_repo"
