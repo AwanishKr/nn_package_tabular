@@ -1,4 +1,4 @@
- import math
+import math
 import torch
 import numpy as np
 import pandas as pd
@@ -32,6 +32,10 @@ def add_logits_to_aum_dict(model, loader, device, aum_dict_template):
             
             logits_list = logits.detach().cpu().tolist()
             targets_list = targets.detach().cpu().tolist()
+            
+            # Convert sample_ids to list if it's a tensor (defensive programming)
+            if isinstance(sample_ids, torch.Tensor):
+                sample_ids = sample_ids.tolist()
 
             for sample_id, logit_vec, target in zip(sample_ids, logits_list, targets_list):
                 if "logits" not in aum_dict_epoch[sample_id]:
@@ -42,7 +46,6 @@ def add_logits_to_aum_dict(model, loader, device, aum_dict_template):
                 # append new values for this checkpoint
                 aum_dict_epoch[sample_id]["logits"] = logit_vec
                 aum_dict_epoch[sample_id]["targets"] = target
-        
 
     return aum_dict_epoch
 
@@ -55,7 +58,6 @@ def calculate_aum(logits, targets, sample_ids, aum_dict, epoch):
     masked_logits = torch.scatter(logits, 1, targets.view(-1, 1), float('-inf'))
     other_logit_values, _ = masked_logits.max(1)
     other_logit_values = other_logit_values.squeeze()
-
     margin_values = (target_values - other_logit_values).tolist()
 
     for sample_id, margin in zip(sample_ids, margin_values):
@@ -252,110 +254,4 @@ def prediction_depth_knn(layer_reps, y, sample_ids, depth_scores, k=10):
 
     return depth_scores
 
-
-
-# import faiss
-# import numpy as np
-# import torch
-
-
-# def prediction_depth_knn_faiss(layer_storage, labels, sample_ids, k=10):
-#     """
-#     For each sample, finds the first layer where kNN agrees with the label.
-#     Returns dict mapping sample_id -> depth.
-#     """
-#     depth_scores = {sid: None for sid in sample_ids}
-#     labels = labels.numpy()
-
-#     for layer_idx, X in layer_storage.items():
-#         X = X.numpy().astype("float32")
-
-#         # FAISS index
-#         index = faiss.IndexFlatL2(X.shape[1])
-#         index.add(X)
-
-#         D, I = index.search(X, k + 1)  # include self
-#         knn_labels = labels[I[:, 1:]]  # skip self
-
-#         # majority vote
-#         preds = np.array([np.argmax(np.bincount(neigh)) for neigh in knn_labels])
-
-#         for i, sid in enumerate(sample_ids):
-#             if depth_scores[sid] is None and preds[i] == labels[i]:
-#                 depth_scores[sid] = layer_idx
-
-#     # fill unresolved with max depth
-#     for sid in sample_ids:
-#         if depth_scores[sid] is None:
-#             depth_scores[sid] = max(layer_storage.keys())
-
-#     return depth_scores
-
-
-# import numpy as np
-# import torch
-
-# def prediction_depth_knn_faiss(layer_storage, labels, sample_ids, k=10):
-#     """
-#     For each sample, finds the first layer where kNN agrees with the label.
-#     - Uses FAISS GPU if available
-#     - Falls back to FAISS CPU if no GPU
-#     - Falls back to sklearn if FAISS not installed
-
-#     Args:
-#         layer_storage: dict[layer_idx -> torch.Tensor [N, D]]
-#         labels: torch.Tensor [N]
-#         sample_ids: list of IDs
-#         k: number of neighbors
-
-#     Returns:
-#         depth_scores: dict {sample_id -> depth}
-#     """
-#     depth_scores = {sid: None for sid in sample_ids}
-#     labels = labels.cpu().numpy()
-
-#     # Try FAISS first
-#     try:
-#         import faiss
-#         use_gpu = faiss.get_num_gpus() > 0
-#         if use_gpu:
-#             res = faiss.StandardGpuResources()
-#     except ImportError:
-#         faiss = None
-#         use_gpu = False
-
-#     for layer_idx, X in layer_storage.items():
-#         X = X.detach().cpu().numpy().astype("float32")
-
-#         if faiss is not None:
-#             d = X.shape[1]
-#             index_flat = faiss.IndexFlatL2(d)
-
-#             if use_gpu:
-#                 index = faiss.index_cpu_to_gpu(res, 0, index_flat)
-#             else:
-#                 index = index_flat
-
-#             index.add(X)
-#             D, I = index.search(X, k + 1)  # include self
-#         else:
-#             # sklearn fallback
-#             from sklearn.neighbors import NearestNeighbors
-#             nn = NearestNeighbors(n_neighbors=k+1, metric="euclidean").fit(X)
-#             D, I = nn.kneighbors(X)
-
-#         knn_labels = labels[I[:, 1:]]  # skip self
-#         preds = np.array([np.argmax(np.bincount(neigh)) for neigh in knn_labels])
-
-#         for i, sid in enumerate(sample_ids):
-#             if depth_scores[sid] is None and preds[i] == labels[i]:
-#                 depth_scores[sid] = layer_idx
-
-#     # fill unresolved with max depth
-#     max_layer = max(layer_storage.keys())
-#     for sid in sample_ids:
-#         if depth_scores[sid] is None:
-#             depth_scores[sid] = max_layer
-
-#     return depth_scores
 
